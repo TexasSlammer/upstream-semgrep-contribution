@@ -1,0 +1,34 @@
+Probe corpus results: ORIGINAL rule vs IMPROVED rule
+semgrep 1.183.0 | rule base: semgrep-rules@16b9e6d45f10649f6a531ec4838ed9924372c3bc
+probes: edge-alias-from-import-residual.py, edge-call-before-shadow.py, edge-cases.py, gap-classes-1.py, gap-classes-2.py, tn-local-class-shadow.py, tn-safe-from-import-plus-local-class.py, tn-safe-loader-from-import.py, tp-from-import-positional.py, tp-multi-name-from-import.py
+
+ORIGINAL rule matches (7):
+  gap-classes-1.py:8
+  gap-classes-1.py:13
+  gap-classes-1.py:17
+  gap-classes-1.py:21
+  gap-classes-1.py:25
+  gap-classes-1.py:39
+  gap-classes-2.py:40
+
+IMPROVED rule matches (17):
+  edge-call-before-shadow.py:6
+  edge-cases.py:3
+  gap-classes-1.py:8
+  gap-classes-1.py:13
+  gap-classes-1.py:17
+  gap-classes-1.py:21
+  gap-classes-1.py:25
+  gap-classes-1.py:29
+  gap-classes-1.py:33
+  gap-classes-1.py:39
+  gap-classes-2.py:5
+  gap-classes-2.py:9
+  gap-classes-2.py:13
+  gap-classes-2.py:18
+  gap-classes-2.py:40
+  tp-from-import-positional.py:2
+  tp-multi-name-from-import.py:2
+
+newly detected (the gap): 10 -> [('edge-call-before-shadow.py', 6), ('edge-cases.py', 3), ('gap-classes-1.py', 29), ('gap-classes-1.py', 33), ('gap-classes-2.py', 5), ('gap-classes-2.py', 9), ('gap-classes-2.py', 13), ('gap-classes-2.py', 18), ('tp-from-import-positional.py', 2), ('tp-multi-name-from-import.py', 2)]
+lost detections (regressions): 0 -> []

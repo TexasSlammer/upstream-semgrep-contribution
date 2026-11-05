@@ -1,0 +1,7 @@
+=== BEFORE (current develop rule) on probe corpus ===
+matches: [('probe.py', 8), ('probe.py', 13), ('probe.py', 17), ('probe.py', 21), ('probe.py', 25), ('probe.py', 39), ('probe2.py', 40)]
+total before: 7
+
+=== AFTER (improved rule) on probe corpus ===
+matches: [('probe.py', 8), ('probe.py', 13), ('probe.py', 17), ('probe.py', 21), ('probe.py', 25), ('probe.py', 29), ('probe.py', 33), ('probe.py', 39), ('probe2.py', 5), ('probe2.py', 9), ('probe2.py', 13), ('probe2.py', 18), ('probe2.py', 40), ('probe3.py', 3)]
+total after: 14

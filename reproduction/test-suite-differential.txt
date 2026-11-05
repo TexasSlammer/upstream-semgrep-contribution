@@ -1,0 +1,15 @@
+Upstream-style test suite (rule/avoid-pyyaml-load.py)
+extended with 8 true positives + 6 true negatives.
+
+=== ORIGINAL rule vs extended suite (must FAIL: proves tests detect gap) ===
+0/1: 1 unit tests did not pass:
+--------------------------------------------------------------------------------
+TODO: print(check_output_lines)
+No tests for fixes found.
+[00.07][[31mERROR[0m]: test failed for rule id avoid-pyyaml-load on target /home/z/my-project/work/repo/rule/avoid-pyyaml-load.py (missing findings lines 70, 76, 81, 86, 91, 97, 103, 109.)
+[00.07][[33mWARNING[0m]: no fixtest for test /home/z/my-project/work/repo/rule/avoid-pyyaml-load.py but the rule file /home/z/my-project/work/semgrep-rules/python/lang/security/deserialization/avoid-pyyaml-load.yaml uses autofix
+
+=== IMPROVED rule vs extended suite (must PASS) ===
+1/1: ✓ All tests passed
+No tests for fixes found.
+[00.07][[33mWARNING[0m]: no fixtest for test /home/z/my-project/work/repo/rule/avoid-pyyaml-load.py but the rule file /home/z/my-project/work/repo/rule/avoid-pyyaml-load.yaml uses autofix

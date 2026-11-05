@@ -1,0 +1,11 @@
+True-negative / true-positive guard battery (improved rule)
+Each file scanned individually; isolation matters because
+pattern-inside context is file-level.
+
+PASS  tn-local-class-shadow.py                      got=[] want=[]
+PASS  tn-safe-from-import-plus-local-class.py       got=[] want=[]
+PASS  tn-safe-loader-from-import.py                 got=[] want=[]
+PASS  tp-from-import-positional.py                  got=[('tp-from-import-positional.py', 2)] want=[('tp-from-import-positional.py', 2)]
+PASS  tp-multi-name-from-import.py                  got=[('tp-multi-name-from-import.py', 2)] want=[('tp-multi-name-from-import.py', 2)]
+
+battery: ALL PASS
