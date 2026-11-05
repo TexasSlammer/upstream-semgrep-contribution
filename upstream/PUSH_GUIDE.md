@@ -47,6 +47,14 @@ semgrep validate avoid-pyyaml-load.yaml
 
 Expected: `1/1: ✓ All tests passed` and `Configuration is valid - 0 fatal errors`.
 
+Baseline freshness: re-verified 2026-11-06 — upstream `develop` was still at
+`16b9e6d` ("add php docker rule (#4114)"). If `develop` has moved since,
+diff the rule file first:
+
+```bash
+git diff 16b9e6d origin/develop -- python/lang/security/deserialization/avoid-pyyaml-load.yaml
+```
+
 ## 4. Commit and push
 
 ```bash
@@ -86,10 +94,17 @@ git push -u origin fix/avoid-pyyaml-load-positional-and-unsafe-load-all
 
 Common asks and ready answers (full detail in WALKTHROUGH.md Q&A):
 
-- "Use enumerated patterns instead of regex" → mechanical flip, behavior
-  identical (regex is fully anchored).
-- "Drop the bare-name branches (perf)" → severable; keyword + unsafe_load_all
-  + module-qualified positional stand alone.
+- "Use enumerated patterns instead of regex" → we measured both: enumerated
+  is baseline speed (6.9 s vs 14.3 s on salt/3,121 files) and even detects
+  aliased from-imports, but it fires on a local safe `class Loader` rebind
+  (fails the shadow TN at test line 139). Ready-made file:
+  `rule/variants/avoid-pyyaml-load-enumerated.yaml`; happy to swap if you
+  accept that tradeoff.
+- "The 2x standalone scan time is too much" → measured matrix in
+  `measurement/benchmark-variants.txt`: `unsafe_load_all` is free;
+  metavariable-unification branches cost ~2x as a group (+2.4 ms/file
+  absolute); a reduced variant is included. Absolute cost on a 3,000-file
+  repo is ~7.5 s for an `audit` rule.
 - "Why not FullLoader?" → #2352 precedent; we added a TN test codifying it.
 
 Push follow-ups to the same branch — the PR updates automatically.

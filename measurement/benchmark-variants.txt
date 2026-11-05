@@ -1,0 +1,68 @@
+# Benchmark: formulation variants for the positional/bare-name branches
+
+All numbers measured on `saltstack/salt` pinned at
+`4840c2beedf97185289ca7bfe0b98582f8119a07` (3,121 Python files scanned,
+verified per run), semgrep 1.183.0, `--no-git-ignore --metrics=off --quiet`,
+empty `.semgrepignore`, single-rule scan from the repository root.
+Each figure is the best of >=3 validated sequential runs on the same machine;
+every run was asserted to scan exactly 3,121 files (a target-enumeration
+glitch produced startup-only timings during development; those were
+discarded, which is why every number here is reproducible).
+
+## Single-rule standalone scan times
+
+| rule                                                          | best time | ratio | probe findings | upstream test suite |
+|---|---|---|---|---|
+| A  original rule (`16b9e6d`)                                  | 6.8 s | 1.00x | 7 / 17  | baseline |
+| B  A + `yaml.unsafe_load_all`                                 | 6.6 s | 0.97x | 9 / 17  | pass (minus new TPs) |
+| C  B + positional `Loader=` metavariable-regex branch          | 13.8 s | 2.03x | 12 / 17 | pass (minus new TPs) |
+| D  C + bare-name from-import branches (**shipped**)            | 14.3 s | 2.10x | 17 / 17 | **pass 1/1** |
+| E  B + *enumerated* positional literals                        | 6.6 s | 0.97x | 12 / 17 | pass (minus new TPs) |
+| F2 E + enumerated bare-name blocks                             | 6.9 s | 1.01x | 19 / 17* | **FAIL** (unexpected finding, shadow test) |
+|    reduced = B + bare-name branches (no positional-module)     | 13.5 s | 1.99x | 14 / 17 | missing lines 81, 86, 91 |
+|    exact-2-arg positional variant (H/H3)                       | 14.1 s | 2.07x | 17 / 17 | pass 1/1 |
+
+\* F2's 19 findings include 2 shapes the shipped rule documents as residual
+gaps (aliased from-imports); one of them is a genuine improvement (see
+`reproduction/realworld/`), but the same import-resolution behavior also
+fires on a synthetic "class rebind after same-name from-import" shape that
+the shipped rule correctly keeps silent — `local_safe_loader_shadow` in the
+upstream test file fails under F2.
+
+## What the numbers say
+
+1. **`unsafe_load_all` is free** (B vs A: no measurable cost) and adds 2
+   true positives via the engine's from-import resolution.
+2. **The metavariable-unification branches (positional + bare-name) cost
+   ~2x as a group** (~+2.4 ms/file). They are not independently severable
+   for cost: the reduced variant (bare-name only) is still ~2.0x. The cost
+   driver is metavariable unification breadth, not any single branch.
+3. **Enumerated literals are as fast as the baseline** but shift matching
+   from syntactic binding to the engine's import-table resolution, which
+   breaks the local-class shadow guard (test-file line 139). Correctness
+   first: the shipped rule keeps the metavariable formulation.
+4. **Absolute framing**: the 2.1x ratio applies to single-rule standalone
+   scans. The marginal cost is bounded at ~+2.4 ms per file; semgrep-rules
+   CI runs rule tests on small fixture files, so repo CI runtime is
+   unaffected.
+
+## Severability contract
+
+If maintainers want the baseline profile back, deleting the four
+metavariable branches from the shipped rule (the two `yaml.load(...,
+$LOADER)` positional blocks and the two bare-name blocks) restores the
+original scan time while keeping the free `unsafe_load_all` coverage
+(+2 TPs). `rule/variants/` contains both ready-made alternatives:
+- `avoid-pyyaml-load-reduced.yaml`     — baseline + unsafe_load_all + bare-name (13.5 s, 14/17)
+- `avoid-pyyaml-load-enumerated.yaml`  — fast formulation (6.9 s, closes the aliased-import gap; fails the shadow TN)
+
+## Reproduce
+
+```bash
+pip install semgrep==1.183.0
+git clone --depth 1 https://github.com/saltstack/salt.git /tmp/salt
+cd /tmp/salt && touch .semgrepignore
+# for each variant file V:
+SEMGREP_SEND_METRICS=off semgrep scan --config V --no-git-ignore --metrics=off --quiet --json . | jq '.paths.scanned | length'
+# expect 3121; time the run
+```

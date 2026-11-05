@@ -3,7 +3,7 @@
 **Rule:** `python.lang.security.deserialization.avoid-pyyaml-load`
 **Repository:** [semgrep/semgrep-rules](https://github.com/semgrep/semgrep-rules)
 **Baseline:** rule at commit `16b9e6d45f10649f6a531ec4838ed9924372c3bc` (2026-10-21), tested with semgrep 1.183.0 (PyPI), PyYAML 6.0.3
-**Outcome:** 9 previously-unreported call shapes of a CWE-502 sink now detected (probe corpus: 7 matches before → 17 after, 0 lost); 0 new false positives across 3,577 files in 6 established projects; upstream test suite extended with 8 true positives and 6 true negatives.
+**Outcome:** 9 previously-unreported call shapes of a CWE-502 sink now detected (probe corpus: 7 matches before → 17 after, 0 lost); 0 new false positives across 3,578 files in 6 established projects (re-verified three-way on pinned commits, 2026-11-06); one real-world detection demonstrated on pinned `home-assistant/core`; upstream test suite extended with 8 true positives and 6 true negatives; formulation variants benchmarked so the performance/coverage tradeoff is a decision, not a surprise.
 
 ---
 
@@ -284,7 +284,41 @@ Interpretation, stated honestly:
   both unsafe (`Loader=yaml.Loader`) and positional-safe
   (`yaml.load("{}", yaml.SafeLoader)` marked as non-findings) — confirming
   that positional loader resolution is considered in-scope for unsafe-YAML
-  detection by another major OSS SAST tool.
+  detection by another major OSS SAST tool. GitHub's CodeQL likewise models
+  `yaml.unsafe_load_all` as a YAML decoding sink
+  (`python/ql/test/library-tests/frameworks/yaml/Decoding.py`).
+
+### 9b. Re-verification on pinned commits (2026-11-06)
+
+The battery was re-run as a three-way comparison (original / shipped /
+fastest alternative formulation) with every corpus pinned to the exact
+commit scanned, recorded in `measurement/measure_fp.py` and
+`measurement/fp-scan-results.txt`. Result: 3 / 3 / 3 findings, 0 delta for
+every variant — including the enumerated formulation that trades one
+synthetic FP class for speed. Target counts were asserted per run (3,121
+files on salt); see `measurement/benchmark-variants.txt` for the protocol
+and for the timing matrix.
+
+### 9c. A real-world detection on pinned production code
+
+`home-assistant/core` @ `72ff09425462a2c39d4e0c89bd1ec100ac28b06c`,
+`tests/test_config.py:453` — `list(yaml.unsafe_load_all(fp))`: the original
+rule reports 0 findings, the improved rule reports 1. Pinned commands and
+output in `reproduction/realworld/README.md`. This is the honest answer to
+"the battery only proves restraint" — the gap demonstrably exists in real,
+independently written code, and the fix catches it there.
+
+### 9d. Performance: benchmarked, not hand-waved
+
+Single-rule standalone scan on salt (3,121 files, validated runs):
+original 6.8 s → shipped 14.3 s (~+2.4 ms/file). The formulation matrix in
+`measurement/benchmark-variants.txt` shows where the cost lives: the
+metavariable-unification branches cost ~2x as a group (not independently
+severable), `unsafe_load_all` is free, and an enumerated-literal variant
+runs at baseline speed (6.9 s) but breaks the local-class shadow
+test (import-table resolution). Correctness first; both alternatives are
+included under `rule/variants/` with measured numbers so maintainers can
+choose with data.
 
 ## 10. Scope decisions and limitations
 

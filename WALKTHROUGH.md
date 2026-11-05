@@ -161,20 +161,29 @@ positives — which is exactly the failure mode reviewers ask about.
 
 **Q1. Why regex guards instead of enumerating the three loader names as
 separate patterns, consistent with the baseline style?**
-Style consistency is a fair ask; the change is mechanical
-(`metavariable-regex` → `pattern-either` of three literal patterns per
-function). Offered in the PR; happy to flip. Behavior is identical because
-the regex is fully anchored with no wildcards.
+We measured both. The enumerated-literal formulation runs at baseline speed
+(6.9 s vs 14.3 s on salt / 3,121 files) and even detects aliased from-imports
+(`from yaml import CLoader as CL`), but it shifts matching from syntactic
+metavariable binding to the engine's import-table resolution — which fires on
+a local safe `class Loader(...)` rebind and fails the shadow true-negative
+(upstream test file line 139). The shipped rule keeps the metavariable
+formulation for correctness; `rule/variants/avoid-pyyaml-load-enumerated.yaml`
+contains the fast variant with its tradeoff documented, ready to swap in if
+maintainers prefer speed plus the alias coverage.
 
 **Q2. Does `pattern-inside: from yaml import $LOADER` scale? Is it slow?**
-Measured, not hand-waved: on the largest corpus (saltstack/salt, 3,120
-Python files), the baseline rule scans in 7.3 s and the improved rule in
-15.1 s (~2.5 ms → ~4.8 ms per file; absolute cost stays in the seconds even
-on a very large repository). The delta comes from the two unification
-branches, which add import-context evaluation per call site. If maintainers
-consider that material, the positional bare-name branches are severable —
-the keyword, `unsafe_load_all`, and module-qualified-positional coverage
-stand alone (see also Q6/§11 of the case study).
+Measured, not hand-waved — and measured with per-run validation (every run
+asserted to scan exactly 3,121 target files; unvalidated timings were
+discarded). On saltstack/salt the baseline rule scans in 6.8 s and the
+shipped rule in 14.3 s (~+2.4 ms/file absolute). The full formulation matrix
+(`measurement/benchmark-variants.txt`) shows the metavariable-unification
+branches cost ~2x as a group and are NOT independently severable for cost —
+an earlier claim that only the bare-name branches were expensive did not
+survive validated measurement. Options if the delta is material: baseline
+speed + `unsafe_load_all` only (+2 TPs, free), or the enumerated variant
+(baseline speed, closes the alias gap, one documented synthetic FP class).
+Absolute framing: ~7.5 s on a 3,000-file repo for an `audit` rule; repo CI
+tests run on fixture files and are unaffected.
 
 **Q3. Why does the message/fix-regex only rewrite `unsafe_load`?**
 Pre-existing behavior, left untouched. The `fix-regex` rewrites the matched
@@ -192,9 +201,13 @@ cost of coverage is measured at zero FPs; the benefit class is the same one
 that justified the original rule.
 
 **Q5. `unsafe_load_all` — really used anywhere?**
-Rare in the wild, but it is a public, documented API member symmetric to the
-already-covered `unsafe_load`, discovered by auditing the module surface
-rather than by incident. One line, zero FP footprint on the battery.
+Yes — demonstrated, not asserted: `home-assistant/core` @ `72ff0942`,
+`tests/test_config.py:453` (`list(yaml.unsafe_load_all(fp))`) — 0 findings
+with the original rule, 1 with the improved rule (pinned commands in
+`reproduction/realworld/README.md`). GitHub's CodeQL independently models
+`yaml.unsafe_load_all` as a YAML decoding sink. It is also a public,
+documented API member symmetric to the already-covered `unsafe_load`.
+One line, zero FP footprint on the battery.
 
 **Q6. What about `FullLoader` bypasses (CVE-2020-14343)?**
 Out of scope by upstream's own precedent: PR #2352 proposing FullLoader
@@ -244,9 +257,12 @@ passes both before and after proves nothing; this one is a regression tripwire.
 | --- | --- |
 | `rule/avoid-pyyaml-load.yaml` | The PR artifact. Metadata untouched except `message:`. |
 | `rule/avoid-pyyaml-load.py` | The PR's test artifact: baseline cases + 8 TP + 6 TN, upstream annotation style. |
+| `rule/variants/` | Measured alternatives (reduced / enumerated) with a README explaining when each wins. |
 | `reproduction/probes/gap-classes-*.py` | The proof the baseline misses the shapes (paired with `evidence-probe-corpus.txt`). |
 | `reproduction/probes/tn-*.py`, `edge-*.py` | The adversarial corpus: silence is the assertion. |
 | `reproduction/probes/tp-*.py` | Minimal single-form positives kept out of the multi-form files to avoid file-level context interference. |
+| `reproduction/realworld/` | Pinned real-world detection demo (home-assistant/core) + CodeQL/bandit precedent. |
 | `reproduction/*.txt` | Machine-checkable evidence; regenerate via the commands in CASE-STUDY §12. |
-| `measurement/measure_fp.py` | Self-contained FP battery; pins the original rule by SHA so numbers are reproducible. |
+| `measurement/measure_fp.py` | Self-contained FP battery; pins the original rule by SHA and records every corpus commit. |
+| `measurement/benchmark-variants.txt` | The formulation/performance matrix behind the shipped design. |
 | `upstream/*` | Paste-ready issue, PR text, and the exact push commands. |

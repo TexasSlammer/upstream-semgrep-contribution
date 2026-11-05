@@ -60,8 +60,15 @@ rule passes 1/1 and `semgrep validate` is clean.
 
 - Probe corpus (available in my reproduction repo, link in comments):
   baseline 7 matches → fixed 17, **0 detections lost**.
+- **Real-world detection on pinned production code**: `home-assistant/core`
+  @ `72ff09425462a2c39d4e0c89bd1ec100ac28b06c`, `tests/test_config.py:453`
+  (`list(yaml.unsafe_load_all(fp))`) — 0 findings with the original rule,
+  1 with the improved rule. Independently, GitHub's CodeQL models
+  `yaml.unsafe_load_all` as a YAML decoding sink.
 - False-positive battery — original vs fixed rule over 6 established
-  repositories with semgrep's default ignores disabled:
+  repositories, **each pinned to its exact scanned commit** (recorded in
+  the measurement script), re-verified 2026-11-06 including the faster
+  alternative formulation (identical result for all variants):
 
   | repo | files | before | after | new findings |
   |---|---|---|---|---|
@@ -69,7 +76,7 @@ rule passes 1/1 and `semgrep validate` is clean.
   | pallets/flask | 83 | 0 | 0 | 0 |
   | yaml/pyyaml | 49 | 2 | 2 | 0 |
   | docker/compose @1.29.2 | 92 | 0 | 0 | 0 |
-  | saltstack/salt | 3,120 | 0 | 0 | 0 |
+  | saltstack/salt | 3,121 | 0 | 0 | 0 |
   | PyCQA/bandit | 196 | 1 | 1 | 0 |
 
   0 new false positives; bandit's positional-safe canaries
@@ -77,9 +84,16 @@ rule passes 1/1 and `semgrep validate` is clean.
   and that file doubles as industry precedent that positional loader forms
   belong in this detection surface.
 
-- Performance (salt, 3,120 files): 7.3 s → 15.1 s per single-rule scan.
-  The two bare-name unification branches are severable if that delta is a
-  concern; the rest of the coverage stands alone.
+- Performance (salt, 3,121 files, every run asserted to scan the full
+  target set): 6.8 s → 14.3 s per single-rule scan (~+2.4 ms/file). A full
+  formulation matrix accompanies this PR: the `unsafe_load_all` addition
+  is free; the metavariable-unification branches cost ~2x as a group; and
+  a baseline-speed enumerated-literal variant (6.9 s, which additionally
+  detects aliased from-imports) is included with its documented tradeoff
+  (it breaks the local-class shadow test via import-table resolution), so
+  maintainers can trade coverage/speed with data. Absolute framing:
+  ~7.5 s on a 3,000-file repository for an `audit`-subcategory rule; this
+  repo's CI runs fixture-file tests and is unaffected.
 
 ## Scope decisions (deliberate non-changes)
 

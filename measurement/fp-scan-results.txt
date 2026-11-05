@@ -18,3 +18,38 @@ bandit             196       1       1      0
 TOTAL             3577       3       3      0
 
 delta findings saved -> /home/z/my-project/work/repo/measurement/delta_findings.json
+
+======================================================================
+RE-VERIFICATION 2026-11-06 — three-way battery, pinned commits
+======================================================================
+Every corpus pinned at the exact commit scanned (recorded from the
+original session's clones; verified with git rev-parse):
+
+  requests    psf/requests        3c7baaa05ab4aa49cc819ce3a819d260de19c157
+  flask       pallets/flask       49943b5a94413a530761350f04e896f76e8d620e
+  pyyaml      yaml/pyyaml         f5e4504a92f169f65350a1047dccb23bc97028be
+  compose-v1  docker/compose      5becea4ca9f68875334c92f191a13482bcd6e5cf  (tag 1.29.2)
+  salt        saltstack/salt      4840c2beedf97185289ca7bfe0b98582f8119a07
+  bandit      PyCQA/bandit        48ef27bd1bbc32f4e585c92310f7a574e87f6b04
+
+Findings per rule variant (semgrep 1.183.0, empty .semgrepignore,
+--no-git-ignore):
+
+repo         files   A-original  D-shipped  E-enumerated   new-vs-A
+---------------------------------------------------------------
+requests        37         0         0          0             0
+flask           83         0         0          0             0
+pyyaml          49         2         2          2             0
+compose-v1      92         0         0          0             0
+salt          3121         0         0          0             0
+bandit         196         1         1          1             0
+---------------------------------------------------------------
+TOTAL        3578         3         3          3             0
+
+0 new findings for every variant on real code (the shipped rule and even
+the fastest enumerated alternative add zero false positives and zero
+findings deltas across the six pinned repositories). Target counts were
+asserted per run; see measurement/benchmark-variants.txt for the scan
+protocol. The one-file difference vs the original capture above (salt
+3120 -> 3121) is target enumeration of a generated Jinja template file
+under the asserted-count protocol.

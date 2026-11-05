@@ -69,11 +69,36 @@ negatives (positional SafeLoader/CSafeLoader/BaseLoader stay silent; local
 safe `class Loader` stays silent; `yaml.full_load` stays silent, consistent
 with the decision in #2352).
 
-Measured impact on 6 established repositories (3,577 files, including
-yaml/pyyaml, saltstack/salt, PyCQA/bandit): **0 new false positives, 0 lost
-findings**. Bandit's own B506 example file (`examples/yaml_load.py`)
-enumerates positional loader forms as in-scope, including positional-safe
-non-findings.
+## Measured impact
+
+False-positive battery on 6 established repositories (3,578 files, including
+yaml/pyyaml, saltstack/salt, PyCQA/bandit, every corpus pinned to its exact
+scanned commit): **0 new false positives, 0 lost findings**, re-verified
+2026-11-06 as a three-way comparison including a faster alternative
+formulation (same result for all variants).
+
+Performance, measured with per-run target-count validation
+(saltstack/salt, 3,121 files): original 6.8 s → improved 14.3 s standalone
+(~+2.4 ms/file). A full formulation matrix will ship with the PR; the cost
+is intrinsic to the metavariable-unification branches (~2x as a group) and
+`unsafe_load_all` is free; a baseline-speed enumerated variant exists with a
+documented tradeoff (it breaks the local-class shadow test), so the
+performance/coverage choice can be explicit rather than hidden.
+Absolute framing: ~7.5 s on a 3,000-file repo for an `audit`-subcategory
+rule; this repo's CI runs fixture-file tests and is unaffected.
+
+## Real-world confirmation
+
+The gap is not hypothetical. On pinned `home-assistant/core`
+(`72ff09425462a2c39d4e0c89bd1ec100ac28b06c`), `tests/test_config.py:453`
+calls `list(yaml.unsafe_load_all(fp))` — the original rule reports 0
+findings there, the improved rule reports 1 (pinned commands and output
+available on request / in the PR). GitHub's CodeQL independently
+models `yaml.unsafe_load_all` as a YAML decoding sink
+(`python/ql/test/library-tests/frameworks/yaml/Decoding.py`), and bandit's
+B506 example corpus (`examples/yaml_load.py:22-28`) treats the positional
+loader convention as in-scope, annotating positional *safe* loaders as
+expected non-findings.
 
 Happy to open the PR if the scope sounds right — or to trim the bare-name
 branch if you prefer the more conservative subset.

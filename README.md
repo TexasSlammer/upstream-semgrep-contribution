@@ -13,7 +13,9 @@ zero-false-positive result.
 | Detection gap identified | 4 gap classes / 9 unreported call shapes (CWE-502 sink) |
 | Probe corpus | 7 matches before → 17 after (**+10 detections — the 9 gap shapes + 1 documented edge case — 0 lost**) |
 | Upstream test suite | Original rule **fails** the extended suite (8 missing findings); improved rule passes 100% |
-| False-positive battery | **3,577 files / 6 established projects: 0 new false positives**, 0 lost findings |
+| False-positive battery | **3,578 files / 6 established projects, re-verified three-way on pinned commits (2026-11-06): 0 new false positives**, 0 lost findings |
+| Real-world detection | `home-assistant/core` @ `72ff0942`, `tests/test_config.py:453`: 0 findings before → 1 after (pinned demo in `reproduction/realworld/`) |
+| Performance | Benchmarked, not hand-waved: 6.8 s → 14.3 s standalone on 3,121 files (+2.4 ms/file); free & fast variants measured in `measurement/benchmark-variants.txt` |
 | Rule schema | `semgrep validate`: 0 fatal errors |
 | Baseline | semgrep 1.183.0 · semgrep-rules@`16b9e6d` (2026-10-21) · PyYAML 6.0.3 |
 
@@ -46,15 +48,18 @@ yaml.unsafe_load_all(payload)                  # API member absent from the rule
 ├── WALKTHROUGH.md         # annotated rule + design-iteration log + Q&A prep
 ├── rule/
 │   ├── avoid-pyyaml-load.yaml   # the improved rule (PR artifact)
-│   └── avoid-pyyaml-load.py     # extended upstream test file (PR artifact)
+│   ├── avoid-pyyaml-load.py     # extended upstream test file (PR artifact)
+│   └── variants/                # measured alternatives (reduced / enumerated) + README
 ├── reproduction/
 │   ├── probes/                  # isolation-correct probe & guard corpus
+│   ├── realworld/               # pinned real-world detection demo (home-assistant/core)
 │   ├── evidence-probe-corpus.txt
 │   ├── guard-battery.txt
 │   └── test-suite-differential.txt
 ├── measurement/
 │   ├── measure_fp.py            # self-contained: rebuilds the FP table from scratch
-│   ├── fp-scan-results.txt      # 6 repos / 3,577 files / delta = 0
+│   ├── fp-scan-results.txt      # 6 repos / pinned commits / delta = 0
+│   ├── benchmark-variants.txt   # formulation & performance matrix
 │   └── delta_findings.json
 └── upstream/
     ├── ISSUE.md                 # paste-ready upstream issue
@@ -94,6 +99,10 @@ false-positive quantification across real-world code at scale.
 
 Baseline rule fetched from semgrep-rules at commit `16b9e6d45f10649f6a531ec4838ed9924372c3bc`
 (2026-10-21) and tested against semgrep 1.183.0 (PyPI) with PyYAML 6.0.3.
+Re-verified against the live upstream `develop` branch on 2026-11-06: still
+at `16b9e6d` (last commit "add php docker rule (#4114)"), so the baseline is
+current develop, not a stale pin. Every FP-battery corpus is pinned to the
+exact commit scanned (`measure_fp.py` records them and flags drift).
 Developed with AI assistance (Z.ai); every claim,
 number, and code path in this repository was produced and verified by
 executing the commands shown above — see `WALKTHROUGH.md` for the full

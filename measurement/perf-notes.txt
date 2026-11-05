@@ -3,31 +3,57 @@ Performance notes: baseline rule vs improved rule
 
 Method
 ------
-Largest corpus in the FP battery (saltstack/salt @ HEAD, 3,120 Python files
-scanned), single-rule scan, semgrep 1.183.0, `--metrics=off --quiet`,
-cold-cache sequential runs from the repository root with an empty
-`.semgrepignore` (same setup as `measure_fp.py`).
+Largest corpus in the FP battery (saltstack/salt pinned at
+4840c2beedf97185289ca7bfe0b98582f8119a07, 3,121 Python files scanned and
+ASSERTED per run), single-rule scan, semgrep 1.183.0, `--metrics=off
+--quiet`, sequential runs from the repository root with an empty
+`.semgrepignore` (same setup as `measure_fp.py`). Figures are best-of-3
+validated runs on one machine (2026-11-06). Runs whose target enumeration
+did not return exactly 3,121 files were discarded (a startup-only timing
+artifact observed during development; see benchmark-variants.txt).
 
-Results
--------
-  original rule   7.3 s   (~2.5 ms/file)
-  improved rule  15.1 s   (~4.8 ms/file)
+Results (single-rule standalone scans)
+--------------------------------------
+  original rule   6.8 s   (~2.2 ms/file)
+  improved rule  14.3 s   (~4.6 ms/file)    delta ~ +2.4 ms/file
 
-Attribution
------------
-The delta comes from the two positional bare-name branches, which pair
-`pattern-inside: from yaml import $LOADER` metavariable unification with
-per-call-site evaluation. The keyword, `unsafe_load_all`, and
-module-qualified positional branches are pattern-only and cheap.
+Full formulation matrix, including enumerated and reduced variants at
+6.6-13.5 s, is in benchmark-variants.txt. Headline findings:
+
+  * `yaml.unsafe_load_all` addition is free (6.6 s).
+  * The metavariable-unification branches (positional + bare-name) cost
+    ~2x as a group (~+2.4 ms/file); they are not independently severable
+    for cost (bare-name alone is still ~2.0x).
+  * An enumerated-literal formulation runs at baseline speed (6.9 s) and
+    even closes the aliased-from-import gap, but shifts matching to the
+    engine's import-table resolution, which breaks the local-class shadow
+    true-negative (upstream test file line 139). Correctness first: the
+    shipped rule keeps the metavariable formulation; the fast variant is
+    included under rule/variants/ with its tradeoff documented.
+
+Absolute framing
+----------------
+The 2.1x ratio applies to single-rule standalone scans. The marginal cost
+is bounded at ~+2.4 ms per file. semgrep-rules CI runs rule tests on small
+fixture files, so repository CI runtime is unaffected; end users running
+this single rule standalone on a 3,000-file repository see ~+7.5 s.
 
 Reproduce
 ---------
   cd corpora/salt   # after running measure_fp.py once to clone
   time semgrep scan --config <baseline.yaml> --no-git-ignore --metrics=off --quiet .
   time semgrep scan --config ../rule/avoid-pyyaml-load.yaml --no-git-ignore --metrics=off --quiet .
+  # verify target count in the JSON: .paths.scanned | length == 3121
 
 Mitigation options if maintainers consider the delta material
 -------------------------------------------------------------
-1. Drop the two bare-name branches (severable without affecting the rest).
-2. Accept: absolute cost is ~8 extra seconds on a 3,120-file repository for
-   an `audit`-subcategory rule that is not in the default blocking path.
+1. Keep only the free additions (unsafe_load_all): rule/variants/
+   avoid-pyyaml-load-reduced.yaml minus the bare-name blocks — baseline
+   speed, +2 true positives.
+2. Switch to the enumerated formulation (rule/variants/
+   avoid-pyyaml-load-enumerated.yaml): baseline speed, +4 true positives
+   including the aliased-import gap, at the cost of one synthetic
+   false-positive class (same-name class rebind after from-import) that
+   did not occur in any of the six pinned real-world corpora.
+3. Accept: absolute cost is ~7.5 s on a 3,121-file repository for an
+   `audit`-subcategory rule that is not in the default blocking path.

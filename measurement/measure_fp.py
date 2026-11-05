@@ -31,6 +31,9 @@ ORIGINAL = os.path.join(HERE, "avoid-pyyaml-load.original.yaml")
 CORPORA = os.path.join(HERE, "corpora")
 
 # (directory, git url, ref or None for default branch)
+# PINNED_COMMITS records the exact HEAD commit each default-branch clone was
+# scanned at for the results in fp-scan-results.txt (2026-11-06). Fresh runs
+# may advance past them; re-record with `git -C corpora/<name> rev-parse HEAD`.
 REPOS = [
     ("requests",       "https://github.com/psf/requests.git",        None),
     ("flask",          "https://github.com/pallets/flask.git",       None),
@@ -39,6 +42,14 @@ REPOS = [
     ("salt",           "https://github.com/saltstack/salt.git",      None),
     ("bandit",         "https://github.com/PyCQA/bandit.git",        None),
 ]
+PINNED_COMMITS = {
+    "requests":   "3c7baaa05ab4aa49cc819ce3a819d260de19c157",
+    "flask":      "49943b5a94413a530761350f04e896f76e8d620e",
+    "pyyaml":     "f5e4504a92f169f65350a1047dccb23bc97028be",
+    "compose-v1": "5becea4ca9f68875334c92f191a13482bcd6e5cf",
+    "salt":       "4840c2beedf97185289ca7bfe0b98582f8119a07",
+    "bandit":     "48ef27bd1bbc32f4e585c92310f7a574e87f6b04",
+}
 
 
 def sh(cmd, cwd=None, allow_rc=(0,)):
@@ -69,6 +80,19 @@ def ensure_corpus():
         print(f"cloned {name}")
 
 
+def report_pins():
+    """Print the exact commit each corpus is scanned at (reproducibility)."""
+    print("pinned corpus commits:")
+    for name, _, _ in REPOS:
+        dest = os.path.join(CORPORA, name)
+        if os.path.isdir(dest):
+            head = subprocess.run(["git", "-C", dest, "rev-parse", "HEAD"],
+                                  capture_output=True, text=True).stdout.strip()
+            recorded = PINNED_COMMITS.get(name, "n/a")
+            match = "" if head == recorded else "  (MOVED since recorded run)"
+            print(f"  {name:<12} {head[:12]}  recorded: {recorded[:12]}{match}")
+
+
 def scan(cfg, cwd):
     # An empty .semgrepignore in the scan working directory disables semgrep's
     # built-in ignore list; without this, tests/ and examples/ are skipped and
@@ -96,6 +120,7 @@ def main():
     ensure_original_rule()
     if not args.skip_clone:
         ensure_corpus()
+    report_pins()
 
     print(f"\n{'repo':<14} {'files':>7} {'before':>7} {'after':>7} {'delta':>6}")
     print("-" * 46)
