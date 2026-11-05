@@ -1,14 +1,3 @@
-# paste-ready text for the pull request to semgrep/semgrep-rules
-# Branch suggestion: fix/avoid-pyyaml-load-positional-and-unsafe-load-all
-# Files changed (exactly two):
-#   python/lang/security/deserialization/avoid-pyyaml-load.yaml
-#   python/lang/security/deserialization/avoid-pyyaml-load.py
-
-TITLE:
-[python] avoid-pyyaml-load: detect unsafe_load_all and positional Loader arguments
-
-BODY:
-
 ## Summary
 
 Closes the false-negative families described in issue #<ISSUE-NUMBER> (fill
