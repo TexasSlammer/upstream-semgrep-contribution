@@ -1,0 +1,33 @@
+Performance notes: baseline rule vs improved rule
+==================================================
+
+Method
+------
+Largest corpus in the FP battery (saltstack/salt @ HEAD, 3,120 Python files
+scanned), single-rule scan, semgrep 1.183.0, `--metrics=off --quiet`,
+cold-cache sequential runs from the repository root with an empty
+`.semgrepignore` (same setup as `measure_fp.py`).
+
+Results
+-------
+  original rule   7.3 s   (~2.5 ms/file)
+  improved rule  15.1 s   (~4.8 ms/file)
+
+Attribution
+-----------
+The delta comes from the two positional bare-name branches, which pair
+`pattern-inside: from yaml import $LOADER` metavariable unification with
+per-call-site evaluation. The keyword, `unsafe_load_all`, and
+module-qualified positional branches are pattern-only and cheap.
+
+Reproduce
+---------
+  cd corpora/salt   # after running measure_fp.py once to clone
+  time semgrep scan --config <baseline.yaml> --no-git-ignore --metrics=off --quiet .
+  time semgrep scan --config ../rule/avoid-pyyaml-load.yaml --no-git-ignore --metrics=off --quiet .
+
+Mitigation options if maintainers consider the delta material
+-------------------------------------------------------------
+1. Drop the two bare-name branches (severable without affecting the rest).
+2. Accept: absolute cost is ~8 extra seconds on a 3,120-file repository for
+   an `audit`-subcategory rule that is not in the default blocking path.

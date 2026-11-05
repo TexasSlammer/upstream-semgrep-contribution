@@ -1,0 +1,20 @@
+fetched original rule @ 16b9e6d45f10 -> avoid-pyyaml-load.original.yaml
+cloned requests
+cloned flask
+cloned pyyaml
+cloned compose-v1
+cloned salt
+cloned bandit
+
+repo             files  before   after  delta
+----------------------------------------------
+requests            37       0       0      0
+flask               83       0       0      0
+pyyaml              49       2       2      0
+compose-v1          92       0       0      0
+salt              3120       0       0      0
+bandit             196       1       1      0
+----------------------------------------------
+TOTAL             3577       3       3      0
+
+delta findings saved -> /home/z/my-project/work/repo/measurement/delta_findings.json
