@@ -1,11 +1,3 @@
-# paste-ready text for github.com/semgrep/semgrep-rules issue
-# (Issues > New issue; no issue template is enforced in this repo as of 2026-11)
-
-TITLE:
-False negatives in avoid-pyyaml-load: positional Loader argument and unsafe_load_all are not detected
-
-BODY:
-
 ## Summary
 
 `python.lang.security.deserialization.avoid-pyyaml-load` misses three
